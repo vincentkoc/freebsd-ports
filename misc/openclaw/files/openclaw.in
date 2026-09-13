@@ -29,16 +29,23 @@ load_rc_config $name
 : ${openclaw_pidfile:="/var/run/openclaw.pid"}
 
 run_command="%%PREFIX%%/bin/openclaw"
-procname="%%PREFIX%%/bin/node" # node in order to be stopped properly by the framework (instead of "${run_command}")
+procname="/usr/sbin/daemon"
 pidfile=${openclaw_pidfile}
 command=/usr/sbin/daemon
-command_args="-f -t ${name} -p ${pidfile} -o ${openclaw_log} ${run_command} gateway run"
+command_args="-f -r -t ${name} -P ${pidfile} -o ${openclaw_log} ${run_command} gateway run"
+
+# Shipped scripts tracked the Node child. Keep it stoppable until the first
+# restart after upgrading to a supervisor PID file.
+if [ -n "$(check_pidfile "${pidfile}" "%%PREFIX%%/bin/node")" ]; then
+	procname="%%PREFIX%%/bin/node"
+fi
 
 start_precmd="openclaw_precmd"
 
 openclaw_precmd()
 {
 	export HOME=$(eval echo "~${openclaw_user}")
+	export OPENCLAW_SUPERVISOR_MODE=external
 	touch ${openclaw_log} ${pidfile}
 	chown ${openclaw_user} ${openclaw_log} ${pidfile}
 	chmod 640 ${openclaw_log}
