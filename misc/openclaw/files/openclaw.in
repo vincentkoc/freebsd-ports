@@ -32,7 +32,12 @@ run_command="%%PREFIX%%/bin/openclaw"
 procname="/usr/sbin/daemon"
 pidfile=${openclaw_pidfile}
 command=/usr/sbin/daemon
-command_args="-f -r -t ${name} -P ${pidfile} -o ${openclaw_log} ${run_command} gateway run"
+command_args="-u ${openclaw_user} -f -r -t ${name} -P ${pidfile} -o ${openclaw_log} ${run_command} gateway run"
+
+# Keep daemon privileged so it can remove the PID file from /var/run.
+# daemon -u sets the child account and HOME before executing the gateway.
+child_user=${openclaw_user}
+unset openclaw_user
 
 # Shipped scripts tracked the Node child. Keep it stoppable until the first
 # restart after upgrading to a supervisor PID file.
@@ -44,10 +49,9 @@ start_precmd="openclaw_precmd"
 
 openclaw_precmd()
 {
-	export HOME=$(eval echo "~${openclaw_user}")
 	export OPENCLAW_SUPERVISOR_MODE=external
 	touch ${openclaw_log} ${pidfile}
-	chown ${openclaw_user} ${openclaw_log} ${pidfile}
+	chown ${child_user} ${openclaw_log} ${pidfile}
 	chmod 640 ${openclaw_log}
 }
 
